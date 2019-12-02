@@ -11,7 +11,6 @@ Python 3.5 +
 To setup, you need to clone the repo with submodules. 
 ```
 git clone --recurse-submodules git@github.com:arianhosseini/Conditional-Generation.git
-
 ```
 
 Create and actvate a virtual environment. Then install the dependencies.
