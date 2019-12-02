@@ -1,0 +1,3 @@
+[submodule "InferSent"]
+	path = InferSent
+	url = git@github.com:facebookresearch/InferSent.git
