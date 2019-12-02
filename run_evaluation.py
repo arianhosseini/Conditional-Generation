@@ -2,17 +2,13 @@
 # 2019-12-01
 # COMP550
 
-import os
-import pprint
 import argparse
-import json
 import numpy as np
 import torch
 from scipy import linalg
 
 from InferSent.models import InferSent
 
-pp = pprint.PrettyPrinter(depth=6)
 
 _MODEL_PATH = 'encoder/infersent1.pkl'
 _PARAMS_MODEL = {
@@ -26,25 +22,20 @@ _PARAMS_MODEL = {
 _W2V_PATH = 'GloVe/glove.840B.300d.txt'
 _K_WORDS_VOCAB = 100000
 
-_AGGREGATORS = {
-    "mean": np.mean,
-    "median": np.median,
-    "max": np.max,
-    "min": np.min
-}
+_REAL_FILENAME = "data/bc_50k.txt"
 
 
-def _compute_fd(dist1, dist2):
+def _compute_fd(dist1, dist2, eps=1.e-6):
     """
     Compute Frechet Distance
 
     Inspired from from https://github.com/bioinf-jku/TTUR/blob/master/fid.py
     """
-    mu1 = np.atleast_1d(np.mean(dist1))
-    mu2 = np.atleast_1d(np.mean(dist2))
+    mu1 = np.atleast_1d(np.mean(dist1, axis=0))
+    mu2 = np.atleast_1d(np.mean(dist2, axis=0))
 
-    sigma1 = np.atleast_2d(np.cov(dist1))
-    sigma2 = np.atleast_2d(np.cov(dist2))
+    sigma1 = np.atleast_2d(np.cov(dist1, rowvar=False))
+    sigma2 = np.atleast_2d(np.cov(dist2, rowvar=False))
 
     assert mu1.shape == mu2.shape, "Training and test mean vectors have different lengths"
     assert sigma1.shape == sigma2.shape, "Training and test covariances have different dimensions"
@@ -74,23 +65,39 @@ def _to_json_file(data, filename, verbose=True):
     with open(filename, "w") as f:
         json.dump(data, f)
 
-def _load_samples(filename, verbose=True):
-    if verbose:
-        print(f">>> Read samples from {filename}")
-
+def _read_txt_file(filename):
     with open(filename, "r") as f:
-        raw_data = f.read()
-    # Samples are separated by "\n-"
-    samples = raw_data.split("\n-")
+        return f.read()
+
+def _load_samples(gen_filename, max_real_samples=10, verbose=True):
+    gen = _get_gen_samples(gen_filename, verbose=verbose)
+    real = _get_real_samples(max_real_samples, verbose=verbose)
     # Returns a list of raw samples and a list of generated samples
-    return list(zip(*[
-        # Seed, real_text and generated_text are separated by "\n\n"
-        # TODO: Add[1:] to keep only real and seed once the real text to comprae with is in the input file
-        tuple(sample.split("\n\n"))
-        for sample in samples
+    return real, gen
+
+def _get_gen_samples(gen_filename, verbose=True):
+    if verbose:
+        print(f">>> Read generated samples from {gen_filename}")
+
+    gen_raw_data = _read_txt_file(gen_filename)
+
+    # Returns a list of generated samples
+    return [
+        # Seed and generated_text are separated by "\n\n"
+        sample.split("\n\n")[1]
+        # Samples are separated by "\n-"
+        for sample in gen_raw_data.split("\n-")
         # Skip empty sample (EOF)
         if sample != "\n"
-    ]))
+    ]
+
+def _get_real_samples(max_real_samples, verbose=True):
+    if verbose:
+        print(f">>> Read read samples from {_REAL_FILENAME}")
+
+    # Get a list of generated samples
+    real = _read_txt_file(_REAL_FILENAME)
+    return real.split("\n")[:max_real_samples]
 
 def _evaluate_samples(model, real_text, gen_text, verbose=True):
     if verbose:
@@ -98,14 +105,10 @@ def _evaluate_samples(model, real_text, gen_text, verbose=True):
 
     real_embeddings = model.encode(real_text, tokenize=True)
     gen_embeddings = model.encode(gen_text, tokenize=True)
-
     if verbose:
         print(f">>> Compute Frechet Distance")
 
-    return [
-        _compute_fd(s, g)
-        for s, g in zip(real_embeddings, gen_embeddings)
-    ]
+    return _compute_fd(real_embeddings, gen_embeddings)
 
 def _load_pretrained_model(verbose=True):
     if verbose:
@@ -116,33 +119,28 @@ def _load_pretrained_model(verbose=True):
     infersent.build_vocab_k_words(K=_K_WORDS_VOCAB)
     return infersent
 
-def main(input_filename, verbose=True):
+def main(input_filename, max_real_samples, verbose=True):
     model = _load_pretrained_model(verbose=verbose)
 
     # A sample is a pair of real text and generated text
-    real_text, gen_text = _load_samples(input_filename, verbose=verbose)
+    real_text, gen_text = _load_samples(input_filename,
+                                        max_real_samples=max_real_samples,
+                                        verbose=verbose)
 
-    _raw_results = _evaluate_samples(model, real_text, gen_text, verbose=verbose)
+    score = _evaluate_samples(model, real_text, gen_text, verbose=verbose)
 
-    # Aggregate results
-    results = {agg_name: float(agg(_raw_results)) for agg_name, agg in _AGGREGATORS.items()}
-    # Append raw results
-    results["raw"] = _raw_results
-
-    # Output results to json file
-    output_filename = f"{os.path.splitext(input_filename)[0]}_result.json"
-    _to_json_file(results, output_filename, verbose=verbose)
-
-    if verbose:
-        pp.pprint(results)
-
+    print(f"\n{score}")
 
 if __name__ == "__main__":
     import nltk
     nltk.download('punkt')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-file", help="Input file with generated text")
+    parser.add_argument("-f", "--input-file", help="Input file with generated text")
+    parser.add_argument("-m", "--max-real-samples", type=int,
+                        help="Maximum number of real samples to compare to. Keep it small to debug.")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
-    main(input_filename=args.input_file, verbose=args.verbose)
+    main(input_filename=args.input_file,
+         max_real_samples=args.max_real_samples,
+         verbose=args.verbose)

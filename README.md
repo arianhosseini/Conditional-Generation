@@ -49,8 +49,7 @@ curl -Lo encoder/infersent1.pkl https://dl.fbaipublicfiles.com/infersent/inferse
 Then run the evalution script. This script takes in a text file with seed 
 sentences and generated text (output of `run_generation.py`). It computes
 the Frechet Distance on InferSent embeddings of real and generated text.
-The script outputs the results, raw and aggregated, to a json file that has the
-same name as the input + `_result`.
+The script prints the FD score.
 ```
 python run_evaluation.py  --input-file my_input_file.txt --verbose
 ```
