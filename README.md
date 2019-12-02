@@ -35,9 +35,12 @@ Download the embedding data
 mkdir GloVe
 curl -Lo GloVe/glove.840B.300d.zip http://nlp.stanford.edu/data/glove.840B.300d.zip
 unzip GloVe/glove.840B.300d.zip -d GloVe/
-mkdir fastText
-curl -Lo fastText/crawl-300d-2M.vec.zip https://dl.fbaipublicfiles.com/fasttext/vectors-english/crawl-300d-2M.vec.zip
-unzip fastText/crawl-300d-2M.vec.zip -d fastText/
+```
+
+Download GloVe pretrained models
+```
+mkdir encoder
+curl -Lo encoder/infersent1.pkl https://dl.fbaipublicfiles.com/infersent/infersent1.pkl
 ```
 
 ```

@@ -4,4 +4,4 @@ __pycache__
 *pyc
 data/senteval_data/
 GloVe
-fastText
+encoder
