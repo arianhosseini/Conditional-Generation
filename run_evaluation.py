@@ -84,18 +84,19 @@ def _load_samples(filename, verbose=True):
     samples = raw_data.split("\n-")
     # Returns a list of raw samples and a list of generated samples
     return list(zip(*[
-        # Seed and generated_text are separated by "\n\n"
+        # Seed, real_text and generated_text are separated by "\n\n"
+        # TODO: Add[1:] to keep only real and seed once the real text to comprae with is in the input file
         tuple(sample.split("\n\n"))
         for sample in samples
         # Skip empty sample (EOF)
         if sample != "\n"
     ]))
 
-def _evaluate_samples(model, seed, gen_text, verbose=True):
+def _evaluate_samples(model, real_text, gen_text, verbose=True):
     if verbose:
-        print(f">>> Encode the {len(seed)} samples")
+        print(f">>> Encode the {len(real_text)} samples")
 
-    seed_embeddings = model.encode(seed, tokenize=True)
+    real_embeddings = model.encode(real_text, tokenize=True)
     gen_embeddings = model.encode(gen_text, tokenize=True)
 
     if verbose:
@@ -103,7 +104,7 @@ def _evaluate_samples(model, seed, gen_text, verbose=True):
 
     return [
         _compute_fd(s, g)
-        for s, g in zip(seed_embeddings, gen_embeddings)
+        for s, g in zip(real_embeddings, gen_embeddings)
     ]
 
 def _load_pretrained_model(verbose=True):
@@ -118,10 +119,10 @@ def _load_pretrained_model(verbose=True):
 def main(input_filename, verbose=True):
     model = _load_pretrained_model(verbose=verbose)
 
-    # A sample is a pair of seed text and generated text
-    seed, gen_text = _load_samples(input_filename, verbose=verbose)
+    # A sample is a pair of real text and generated text
+    real_text, gen_text = _load_samples(input_filename, verbose=verbose)
 
-    _raw_results = _evaluate_samples(model, seed, gen_text, verbose=verbose)
+    _raw_results = _evaluate_samples(model, real_text, gen_text, verbose=verbose)
 
     # Aggregate results
     results = {agg_name: float(agg(_raw_results)) for agg_name, agg in _AGGREGATORS.items()}
