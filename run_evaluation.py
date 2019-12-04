@@ -3,11 +3,19 @@
 # COMP550
 
 import argparse
+import random
 import numpy as np
 import torch
 from scipy import linalg
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from InferSent.models import InferSent
+from bert_score.bert_score import score as bert_score
+from bert_score.bert_score import plot_example
+
+
 
 
 _MODEL_PATH = 'encoder/infersent1.pkl'
@@ -24,6 +32,18 @@ _K_WORDS_VOCAB = 100000
 
 _REAL_FILENAME = "data/bc_50k.txt"
 
+
+def compute_bert_score(ref_text, gen_text, plot_hist=False, plot_similarity=False, verbose=True):
+    P, R, F1 = bert_score(gen_text, ref_text, lang='en', verbose=verbose)
+    if plot_hist:
+        plt.hist(F1, bins=20)
+        plt.savefig("bert_score_hist.png")
+
+    if plot_similarity:
+        rand_index = random.randint(0, len(gen_text)-1)
+        plot_example(gen_text[rand_index], ref_text[rand_index], lang="en", fname="bert_score_similarity.png")
+
+    print(f"System level F1 score: {F1.mean():.3f}")
 
 def _compute_fd(dist1, dist2, eps=1.e-6):
     """
@@ -75,6 +95,22 @@ def _load_samples(gen_filename, max_real_samples=10, verbose=True):
     # Returns a list of raw samples and a list of generated samples
     return real, gen
 
+def _get_cand_and_ref_samples(gen_filename, verbose=True):
+    if verbose:
+        print(f">>> Read generated samples from {gen_filename}")
+
+    gen_raw_data = _read_txt_file(gen_filename)
+
+    # Returns a list of generated samples
+    return zip(*[
+        # Seed and generated_text are separated by "\n\n"
+        (sample.split("\n\n")[0] , sample.split("\n\n")[1])
+        # Samples are separated by "\n-"
+        for sample in gen_raw_data.split("\n-")
+        # Skip empty sample (EOF)
+        if sample != "\n"
+    ])
+
 def _get_gen_samples(gen_filename, verbose=True):
     if verbose:
         print(f">>> Read generated samples from {gen_filename}")
@@ -119,7 +155,7 @@ def _load_pretrained_model(verbose=True):
     infersent.build_vocab_k_words(K=_K_WORDS_VOCAB)
     return infersent
 
-def main(input_filename, max_real_samples, verbose=True):
+def main_FID(input_filename, max_real_samples, verbose=True):
     model = _load_pretrained_model(verbose=verbose)
 
     # A sample is a pair of real text and generated text
@@ -127,20 +163,35 @@ def main(input_filename, max_real_samples, verbose=True):
                                         max_real_samples=max_real_samples,
                                         verbose=verbose)
 
+
     score = _evaluate_samples(model, real_text, gen_text, verbose=verbose)
 
     print(f"\n{score}")
+
+def main_bert_score(input_filename, verbose=True, plot_hist=False, plot_similarity=False):
+    ref_text, gen_text = _get_cand_and_ref_samples(input_filename, verbose=verbose)
+    compute_bert_score(ref_text, gen_text, plot_hist=plot_hist, plot_similarity=plot_similarity, verbose=verbose)
+
 
 if __name__ == "__main__":
     import nltk
     nltk.download('punkt')
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("-e", "--evaluation", default="bert_score", choices=["bert_score", "FID"], help="What evaluation to run")
     parser.add_argument("-f", "--input-file", help="Input file with generated text")
     parser.add_argument("-m", "--max-real-samples", type=int,
                         help="Maximum number of real samples to compare to. Keep it small to debug.")
     parser.add_argument("-v", "--verbose", action="store_true")
+
+    parser.add_argument("--plot_hist", action="store_true", help="Plot histogram")
+    parser.add_argument("--plot_similarity", action="store_true", help="Plot histogram")
     args = parser.parse_args()
-    main(input_filename=args.input_file,
-         max_real_samples=args.max_real_samples,
-         verbose=args.verbose)
+    if args.evaluation == "FID":
+        main_FID(input_filename=args.input_file,
+             max_real_samples=args.max_real_samples,
+             verbose=args.verbose)
+    elif args.evaluation == "bert_score":
+        main_bert_score(input_filename=args.input_file,
+                        plot_hist=args.plot_hist,
+                        plot_similarity=args.plot_similarity)

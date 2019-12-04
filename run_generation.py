@@ -271,15 +271,15 @@ def sample_sequence(model, length, context, num_samples=1, temperature=1, top_k=
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_type", default=None, type=str, required=True,
+    parser.add_argument("--model_type", default='xlnet', type=str,
                         help="Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys()))
-    parser.add_argument("--model_name_or_path", default=None, type=str, required=True,
+    parser.add_argument("--model_name_or_path", default="xlnet-base-cased", type=str,
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(ALL_MODELS))
     parser.add_argument("--prompt", type=str, default="")
     parser.add_argument("--padding_text", type=str, default="")
     parser.add_argument("--mode", type=str, default="ltr")
     parser.add_argument("--refine", type=str, default='none', choices=['none', 'gibbs', 'xent'])
-    parser.add_argument("--padding_src", type=str, default="../data/bc_50k.txt")
+    parser.add_argument("--padding_src", type=str, default="data/bc_50k.txt")
     parser.add_argument("--xlm_lang", type=str, default="", help="Optional language when used with the XLM model.")
     parser.add_argument("--length", type=int, default=20)
     parser.add_argument("--resample_num", type=int, default=5)
