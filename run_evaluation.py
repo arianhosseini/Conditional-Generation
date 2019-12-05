@@ -2,6 +2,7 @@
 # 2019-12-01
 # COMP550
 
+import os
 import argparse
 import random
 import numpy as np
@@ -12,11 +13,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from InferSent.models import InferSent
-from bert_score.bert_score import score as bert_score
-from bert_score.bert_score import plot_example
+#from bert_score.bert_score import score as bert_score
+#from bert_score.bert_score import plot_example
 
+from pyrouge import Rouge155
 
-
+ROUGE_TMP_PATH = "tmp_rouge"
+ROUGE_GEN_FILENAME = "rouge_gen"
+ROUGE_GT_FILENAME = "rouge_gt"
+ROUGE_GEN_FILE_PATTERN = f'{ROUGE_GEN_FILENAME}.(\d+).txt'
+ROUGE_GT_FILE_PATTERN = f'{ROUGE_GT_FILENAME}.(\d+).txt'
 
 _MODEL_PATH = 'encoder/infersent1.pkl'
 _PARAMS_MODEL = {
@@ -32,6 +38,18 @@ _K_WORDS_VOCAB = 100000
 
 _REAL_FILENAME = "data/bc_50k.txt"
 
+
+
+def _compute_rouge(generated_path, ground_truth_path):
+    r = Rouge155()
+    r.system_dir = generated_path
+    r.model_dir = ground_truth_path
+    r.system_filename_pattern = ROUGE_GEN_FILE_PATTERN
+    r.model_filename_pattern = ROUGE_GT_FILE_PATTERN
+
+    output = r.convert_and_evaluate()
+    print(output)
+    # output_dict = r.output_to_dict(output)
 
 def compute_bert_score(ref_text, gen_text, plot_hist=False, plot_similarity=False, verbose=True):
     P, R, F1 = bert_score(gen_text, ref_text, lang='en', verbose=verbose)
@@ -89,6 +107,10 @@ def _read_txt_file(filename):
     with open(filename, "r") as f:
         return f.read()
 
+def _write_txt_file(data, filename):
+    with open(filename, "w") as f:
+        f.write(data)
+
 def _load_samples(gen_filename, max_real_samples=10, verbose=True):
     gen = _get_gen_samples(gen_filename, verbose=verbose)
     real = _get_real_samples(max_real_samples, verbose=verbose)
@@ -104,7 +126,7 @@ def _get_cand_and_ref_samples(gen_filename, verbose=True):
     # Returns a list of generated samples
     return zip(*[
         # Seed and generated_text are separated by "\n\n"
-        (sample.split("\n\n")[0] , sample.split("\n\n")[1])
+        tuple(sample.split("\n\n"))
         # Samples are separated by "\n-"
         for sample in gen_raw_data.split("\n-")
         # Skip empty sample (EOF)
@@ -155,6 +177,18 @@ def _load_pretrained_model(verbose=True):
     infersent.build_vocab_k_words(K=_K_WORDS_VOCAB)
     return infersent
 
+def _write_rouge_files(input_filename):
+    os.makedirs(ROUGE_TMP_PATH, exist_ok=True)
+    refs, gens =_get_cand_and_ref_samples(input_filename)
+
+    for i, gen, gt in enumerate(zip()):
+        _write_to_file("{ROUGE_GEN_FILENAME}.{i:03}.txt", gen)
+        _write_to_file("{ROUGE_GT_FILENAME}.{i:03}.txt", gt)
+
+    return ROUGE_TMP_PATH
+
+
+
 def main_FID(input_filename, max_real_samples, verbose=True):
     model = _load_pretrained_model(verbose=verbose)
 
@@ -172,21 +206,52 @@ def main_bert_score(input_filename, verbose=True, plot_hist=False, plot_similari
     ref_text, gen_text = _get_cand_and_ref_samples(input_filename, verbose=verbose)
     compute_bert_score(ref_text, gen_text, plot_hist=plot_hist, plot_similarity=plot_similarity, verbose=verbose)
 
+def main_rouge(input_filename, verbose=True):
+    filepath = _write_rouge_files(input_filename)
+    _compute_rouge(filepath, filepath)
+
+
 
 if __name__ == "__main__":
     import nltk
     nltk.download('punkt')
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--evaluation", default="bert_score", choices=["bert_score", "FID"], help="What evaluation to run")
-    parser.add_argument("-f", "--input-file", help="Input file with generated text")
-    parser.add_argument("-m", "--max-real-samples", type=int,
-                        help="Maximum number of real samples to compare to. Keep it small to debug.")
-    parser.add_argument("-v", "--verbose", action="store_true")
-
-    parser.add_argument("--plot_hist", action="store_true", help="Plot histogram")
-    parser.add_argument("--plot_similarity", action="store_true", help="Plot histogram")
+    parser.add_argument(
+            "-e",
+            "--evaluation",
+            default="bert_score",
+            choices=["bert_score", "FID", "rouge"],
+            help="What evaluation to run"
+            )
+    parser.add_argument(
+            "-f",
+            "--input-file",
+            help="Input file with generated text"
+            )
+    parser.add_argument(
+            "-m",
+            "--max-real-samples",
+            type=int,
+            help="Maximum number of real samples to compare to. Keep it small to debug."
+            )
+    parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true"
+            )
+    parser.add_argument(
+            "--plot_hist",
+            action="store_true",
+            help="Plot histogram"
+            )
+    parser.add_argument(
+            "--plot_similarity",
+            action="store_true",
+            help="Plot histogram"
+            )
     args = parser.parse_args()
+
     if args.evaluation == "FID":
         main_FID(input_filename=args.input_file,
              max_real_samples=args.max_real_samples,
@@ -195,3 +260,5 @@ if __name__ == "__main__":
         main_bert_score(input_filename=args.input_file,
                         plot_hist=args.plot_hist,
                         plot_similarity=args.plot_similarity)
+    elif args.evaluation == "rouge":
+        main_rouge(input_filename=args.input_file)
