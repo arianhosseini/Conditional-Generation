@@ -16,13 +16,7 @@ from InferSent.models import InferSent
 #from bert_score.bert_score import score as bert_score
 #from bert_score.bert_score import plot_example
 
-from pyrouge import Rouge155
-
-ROUGE_TMP_PATH = "tmp_rouge"
-ROUGE_GEN_FILENAME = "rouge_gen"
-ROUGE_GT_FILENAME = "rouge_gt"
-ROUGE_GEN_FILE_PATTERN = f'{ROUGE_GEN_FILENAME}.(\d+).txt'
-ROUGE_GT_FILE_PATTERN = f'{ROUGE_GT_FILENAME}.(\d+).txt'
+import rouge
 
 _MODEL_PATH = 'encoder/infersent1.pkl'
 _PARAMS_MODEL = {
@@ -38,18 +32,6 @@ _K_WORDS_VOCAB = 100000
 
 _REAL_FILENAME = "data/bc_50k.txt"
 
-
-
-def _compute_rouge(generated_path, ground_truth_path):
-    r = Rouge155()
-    r.system_dir = generated_path
-    r.model_dir = ground_truth_path
-    r.system_filename_pattern = ROUGE_GEN_FILE_PATTERN
-    r.model_filename_pattern = ROUGE_GT_FILE_PATTERN
-
-    output = r.convert_and_evaluate()
-    print(output)
-    # output_dict = r.output_to_dict(output)
 
 def compute_bert_score(ref_text, gen_text, plot_hist=False, plot_similarity=False, verbose=True):
     P, R, F1 = bert_score(gen_text, ref_text, lang='en', verbose=verbose)
@@ -177,17 +159,6 @@ def _load_pretrained_model(verbose=True):
     infersent.build_vocab_k_words(K=_K_WORDS_VOCAB)
     return infersent
 
-def _write_rouge_files(input_filename):
-    os.makedirs(ROUGE_TMP_PATH, exist_ok=True)
-    refs, gens =_get_cand_and_ref_samples(input_filename)
-
-    for i, gen, gt in enumerate(zip()):
-        _write_to_file("{ROUGE_GEN_FILENAME}.{i:03}.txt", gen)
-        _write_to_file("{ROUGE_GT_FILENAME}.{i:03}.txt", gt)
-
-    return ROUGE_TMP_PATH
-
-
 
 def main_FID(input_filename, max_real_samples, verbose=True):
     model = _load_pretrained_model(verbose=verbose)
@@ -206,11 +177,24 @@ def main_bert_score(input_filename, verbose=True, plot_hist=False, plot_similari
     ref_text, gen_text = _get_cand_and_ref_samples(input_filename, verbose=verbose)
     compute_bert_score(ref_text, gen_text, plot_hist=plot_hist, plot_similarity=plot_similarity, verbose=verbose)
 
+def prepare_results(metric, p, r, f):
+    return '\t{}:\t{}: {:5.2f}\t{}: {:5.2f}\t{}: {:5.2f}'.format(metric, 'P', 100.0 * p, 'R', 100.0 * r, 'F1', 100.0 * f)
+
 def main_rouge(input_filename, verbose=True):
-    filepath = _write_rouge_files(input_filename)
-    _compute_rouge(filepath, filepath)
+    ref_text, gen_text = _get_cand_and_ref_samples(input_filename, verbose=verbose)
+    evaluator = rouge.Rouge(metrics=['rouge-n', 'rouge-l', 'rouge-w'],
+                           max_n=4,
+                           limit_length=True,
+                           length_limit=100,
+                           length_limit_type='words',
+                           apply_avg=True,
+                           alpha=0.5, # Default F1_score
+                           weight_factor=1.2,
+                           stemming=True)
+    scores = evaluator.get_scores(gen_text, ref_text)
 
-
+    for metric, results in sorted(scores.items(), key=lambda x: x[0]):
+        print(prepare_results(metric, results['p'], results['r'], results['f']))
 
 if __name__ == "__main__":
     import nltk
