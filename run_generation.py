@@ -129,8 +129,45 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
         logits[indices_to_remove] = filter_value
     return logits
 
+def resample_maxent(model, length, context, least_n=10, resample_num=5, num_samples=1, temperature=0.004, repetition_penalty=1.0,
+                       top_k=0, top_p=0.0, is_xlnet=False, device='cpu'):
+    """
+        10 least probable tokens refining
+    """
+
+    generated = context
+    idxs = torch.arange(generated.shape[1], device=device)[-length:]
+    with torch.no_grad():
+        inputs = {'input_ids': generated}
+        input_ids = generated
+        perm_mask = torch.zeros((1, input_ids.shape[1], input_ids.shape[1]),
+                             dtype=torch.float, device=device)
+        perm_mask[:, idxs, idxs] = 1.0
+        target_mapping = torch.zeros((1, len(idxs), input_ids.shape[1]), dtype=torch.float, device=device)
+        target_mapping[0, torch.arange(len(idxs)), idxs] = 1.0
+
+        inputs = {'input_ids': input_ids, 'perm_mask': perm_mask,  'target_mapping': target_mapping}
+        outputs = model(**inputs)
+
+        # next_token_logits = outputs[0][0, update_pos, :] / temperature
+        next_token_logits = outputs[0][0,:,:] / temperature
+        current_probabilities = next_token_logits[torch.arange(next_token_logits.shape[0]), context[0, -length:]]
+        relative_min_index = random.choices(current_probabilities.argsort()[:min(least_n, len(current_probabilities))])
+        # current_probabilities.argmin() if random.random() < 0.5 else random.choices(torch.arange(len(current_probabilities)))
+
+        min_porb_index = idxs[relative_min_index] #index of word in context
+        next_token_logits = next_token_logits[relative_min_index] #n_vocab
+        filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+        next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1)
+        generated[:, min_porb_index] = next_token[0]
+
+    return generated, [min_porb_index]
+
 def resample_sequence(model, length, context, resample_num=5, num_samples=1, temperature=0.5, repetition_penalty=1.0,
                        top_k=0, top_p=0.0, is_xlnet=False, device='cpu'):
+    """
+        Gibss refining of the generated text
+    """
     generated = context
     idxs = np.arange(generated.shape[1])[-length:]
     np.random.shuffle(idxs)
@@ -162,6 +199,9 @@ def resample_sequence(model, length, context, resample_num=5, num_samples=1, tem
 
 def random_permutation_sampling_sequential(model, length, context, num_samples=1, temperature=0.5, repetition_penalty=1.0,
                        top_k=0, top_p=0.0, is_xlnet=False, device='cpu'):
+    """
+        Generation based on a random permutation
+    """
 
     context = torch.tensor(context, dtype=torch.long, device=device)
     context = context.unsqueeze(0).repeat(num_samples, 1)
@@ -225,8 +265,22 @@ def random_permutation_sampling(model, length, context, num_samples=1, temperatu
 
     return input_ids, random_permutation
 
+def sample_random_sequence(model, length, context, num_samples=1, temperature=1, top_k=0, top_p=0.0, repetition_penalty=1.0,
+                    is_xlnet=False, is_xlm_mlm=False, xlm_mask_token=None, xlm_lang=None, device='cpu'):
+    """
+        totally random generation, meant to be used later in refinement
+    """
+    context = torch.tensor(context, dtype=torch.long, device=device)
+    context = context.unsqueeze(0).repeat(num_samples, 1)
+    next_tokens = torch.randint(low=0, high=model.config.vocab_size, size=(1, length), device=device)
+    generated = torch.cat((context, next_tokens), dim=1)
+    return generated
+
 def sample_sequence(model, length, context, num_samples=1, temperature=1, top_k=0, top_p=0.0, repetition_penalty=1.0,
                     is_xlnet=False, is_xlm_mlm=False, xlm_mask_token=None, xlm_lang=None, device='cpu'):
+    """
+        Left-to-right generation
+    """
     context = torch.tensor(context, dtype=torch.long, device=device)
     context = context.unsqueeze(0).repeat(num_samples, 1)
     generated = context
@@ -288,7 +342,7 @@ def main():
     parser.add_argument("--repetition_penalty", type=float, default=1.0,
                         help="primarily useful for CTRL model; in that case, use 1.2")
     parser.add_argument("--top_k", type=int, default=0)
-    parser.add_argument("--top_p", type=float, default=0.9)
+    parser.add_argument("--top_p", type=float, default=1)
     parser.add_argument("--no_cuda", action='store_true',
                         help="Avoid using CUDA when available")
     parser.add_argument('--seed', type=int, default=42,
@@ -375,6 +429,17 @@ def main():
                     device=args.device,
                 )
             elif args.mode == "rnd":
+                context_out = sample_random_sequence(
+                    model=model,
+                    context=context_tokens,
+                    length=args.length,
+                    temperature=args.temperature,
+                    top_k=args.top_k,
+                    top_p=args.top_p,
+                    repetition_penalty=args.repetition_penalty,
+                    device=args.device,
+                )
+            elif args.mode == "rnd_perm":
                 context_out, random_permutation = random_permutation_sampling_sequential(
                     model=model,
                     context=context_tokens,
@@ -385,7 +450,8 @@ def main():
                     repetition_penalty=args.repetition_penalty,
                     device=args.device,
                 )
-
+            else:
+                raise NotImplementedError("Mode {} not implemented".format(args.mode))
 
             out = context_out[0, len(context_tokens):].tolist()
             raw_text_extended = raw_text + " " + bcolors.OKBLUE +tokenizer.decode(out, clean_up_tokenization_spaces=True) + bcolors.ENDC
@@ -421,6 +487,35 @@ def main():
                 # print("Refined: \n {} \n -------".format(text))
                 raw_text = text.translate({ord("]"):'', ord("["):''})
             # print(_unidiff_output(before_resample, after_resample))
+
+            elif args.refine == "xent":
+                context_tokens = tokenizer.encode(raw_text)
+                context = torch.tensor(context_tokens, dtype=torch.long, device=args.device)
+                context = context.unsqueeze(0).repeat(1, 1)
+                for _ in range(50):
+                    context_out, update_pos = resample_maxent(
+                        model=model,
+                        context=context,
+                        length=args.length,
+                        resample_num=args.resample_num,
+                        temperature=args.temperature,
+                        repetition_penalty=args.repetition_penalty,
+                        top_k=args.top_k,
+                        top_p=args.top_p,
+                        device=args.device,
+                        is_xlnet=bool(args.model_type == "xlnet"),
+                    )
+                    out = context_out[0, :].tolist()
+                    tokens = tokenizer.convert_ids_to_tokens(out) #, clean_up_tokenization_spaces=True)
+                    for i in update_pos:
+                        tokens[i] = bcolors.OKGREEN + tokens[i] + bcolors.ENDC
+                    text = tokenizer.convert_tokens_to_string(tokens)
+                    # print(text)
+                    # print ("-----------")
+
+                # print("Refined: \n {} \n -------".format(text))
+                raw_text = text.translate({ord("]"):'', ord("["):''})
+
             outfile.write(raw_text[seed_len:])
             outfile.write("\n-\n")
 
