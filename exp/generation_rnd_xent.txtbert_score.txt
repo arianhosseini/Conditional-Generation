@@ -1,3 +1,6 @@
 >>> Read generated samples from exp/generation_rnd_xent.txt
 calculating scores...
 computing bert embedding.
+computing greedy matching.
+done in 25.39 seconds, 39.31 sentences/sec
+System level F1 score: 0.779
