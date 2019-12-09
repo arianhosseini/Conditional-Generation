@@ -1,7 +1,7 @@
 FILES=exp/*
 for FILE in $FILES
 do
-    for metric in FID bert_score rouge
+    for METRIC in FID bert_score rouge
     do
         echo $FILE
         echo $METRIC

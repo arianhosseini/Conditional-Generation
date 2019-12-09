@@ -1,0 +1,7 @@
+>>> Read generated samples from exp/generation_rnd_xent.txt
+	rouge-1:	P:  9.34	R:  1.85	F1:  3.06
+	rouge-2:	P:  0.23	R:  0.05	F1:  0.08
+	rouge-3:	P:  0.00	R:  0.00	F1:  0.00
+	rouge-4:	P:  0.00	R:  0.00	F1:  0.00
+	rouge-l:	P: 12.29	R:  3.18	F1:  5.03
+	rouge-w:	P:  7.52	R:  0.87	F1:  1.55

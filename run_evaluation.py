@@ -2,7 +2,6 @@
 # 2019-12-01
 # COMP550
 
-import os
 import argparse
 import random
 import numpy as np
@@ -13,8 +12,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from InferSent.models import InferSent
-#from bert_score.bert_score import score as bert_score
-#from bert_score.bert_score import plot_example
+from bert_score.bert_score import score as bert_score
+from bert_score.bert_score import plot_example
 
 import rouge
 
@@ -78,13 +77,6 @@ def _compute_fd(dist1, dist2, eps=1.e-6):
 
     return diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * np.trace(sqrt_covmean)
 
-def _to_json_file(data, filename, verbose=True):
-    if verbose:
-        print(f">>> Writing results to file {filename}")
-
-    with open(filename, "w") as f:
-        json.dump(data, f)
-
 def _read_txt_file(filename):
     with open(filename, "r") as f:
         return f.read()
@@ -112,7 +104,7 @@ def _get_cand_and_ref_samples(gen_filename, verbose=True):
         # Samples are separated by "\n-"
         for sample in gen_raw_data.split("\n-")
         # Skip empty sample (EOF)
-        if sample != "\n"
+        if len(sample.split("\n\n")) == 2
     ])
 
 def _get_gen_samples(gen_filename, verbose=True):
@@ -128,7 +120,7 @@ def _get_gen_samples(gen_filename, verbose=True):
         # Samples are separated by "\n-"
         for sample in gen_raw_data.split("\n-")
         # Skip empty sample (EOF)
-        if sample != "\n"
+        if len(sample.split("\n\n")) == 2
     ]
 
 def _get_real_samples(max_real_samples, verbose=True):
