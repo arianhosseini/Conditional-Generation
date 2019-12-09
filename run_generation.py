@@ -108,6 +108,11 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
                 Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751)
         From: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
     """
+    if logits.dim() == 2:
+        logits = torch.stack([top_k_top_p_filtering(p, top_k, top_p) for p in logits])
+        # print(logits.shape)
+        return logits
+
     assert logits.dim() == 1  # batch size 1 for now - could be updated for more but the code would be less clear
     top_k = min(top_k, logits.size(-1))  # Safety check
     if top_k > 0:
@@ -150,7 +155,7 @@ def resample_maxent(model, length, context, least_n=10, resample_num=5, num_samp
         outputs = model(**inputs)
 
         # next_token_logits = outputs[0][0, update_pos, :] / temperature
-        next_token_logits = outputs[0][0,:,:] / temperature
+        next_token_logits = outputs[0][0,:,:] / (temperature if temperature > 0 else 1.)
         current_probabilities = next_token_logits[torch.arange(next_token_logits.shape[0]), context[0, -length:]]
         relative_min_index = random.choices(current_probabilities.argsort()[:min(least_n, len(current_probabilities))])
         # current_probabilities.argmin() if random.random() < 0.5 else random.choices(torch.arange(len(current_probabilities)))
@@ -158,7 +163,11 @@ def resample_maxent(model, length, context, least_n=10, resample_num=5, num_samp
         min_porb_index = idxs[relative_min_index] #index of word in context
         next_token_logits = next_token_logits[relative_min_index] #n_vocab
         filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
-        next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1)
+        if temperature == 0: #greedy sampling:
+            next_token = torch.argmax(filtered_logits).unsqueeze(0)
+        else:
+            next_token = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1)
+
         generated[:, min_porb_index] = next_token[0]
 
     return generated, [min_porb_index]
@@ -187,11 +196,15 @@ def resample_sequence(model, length, context, resample_num=5, num_samples=1, tem
         outputs = model(**inputs)
 
         # next_token_logits = outputs[0][0, update_pos, :] / temperature
-        next_token_logits = outputs[0][0,:,:] / temperature
+        next_token_logits = outputs[0][0,:,:] / (temperature if temperature > 0 else 1.)
         for _ in set(generated.view(-1).tolist()):
             next_token_logits[:,_] /= repetition_penalty
-        # filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
-        next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1)
+
+        filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+        if temperature == 0: #greedy sampling:
+            next_token = torch.argmax(filtered_logits).unsqueeze(0)
+        else:
+            next_token = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1)
 
         generated[:, update_pos] = next_token[:, 0]
 
@@ -220,11 +233,14 @@ def random_permutation_sampling_sequential(model, length, context, num_samples=1
             target_mapping[0,0, perm_idx] = 1.0
             inputs = {'input_ids': input_ids, 'perm_mask': perm_mask, 'target_mapping': target_mapping}
             outputs = model(**inputs)
-            next_token_logits = outputs[0][0,:,:] / temperature
+            next_token_logits = outputs[0][0,:,:] / (temperature if temperature > 0 else 1.)
             for _ in set(generated.view(-1).tolist()):
                 next_token_logits[:,_] /= repetition_penalty
-        # filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
-            next_token = torch.multinomial(F.softmax(next_token_logits, dim=-1), num_samples=1)
+            filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+            if temperature == 0: #greedy sampling:
+                next_token = torch.argmax(filtered_logits).unsqueeze(0)
+            else:
+                next_token = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1)
 
             input_ids[:, perm_idx] = next_token[:, 0]
 
@@ -255,7 +271,7 @@ def random_permutation_sampling(model, length, context, num_samples=1, temperatu
         inputs = {'input_ids': input_ids, 'perm_mask': perm_mask, 'target_mapping': target_mapping}
         outputs = model(**inputs)
         # next_token_logits = outputs[0][0, update_pos, :] / temperature
-        next_token_logits = outputs[0][0,:,:] / temperature
+        next_token_logits = outputs[0][0,:,:] / (temperature if temperature > 0 else 1.)
         for _ in set(generated.view(-1).tolist()):
             next_token_logits[:,_] /= repetition_penalty
         # filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
@@ -354,7 +370,7 @@ def main():
     args = parser.parse_args()
 
     if not args.out_file:
-        args.out_file = "generation_mode_{}_refine_{}_len_{}_k_{}_p_{}.txt".format(args.mode, args.refine, args.length, args.top_k, args.top_p)
+        args.out_file = "exp/generation_mode_{}_refine_{}_len_{}_k_{}_p_{}.txt".format(args.mode, args.refine, args.length, args.top_k, args.top_p)
 
     args.device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
     args.n_gpu = torch.cuda.device_count()
@@ -381,6 +397,7 @@ def main():
             logger.info('CTRL typically works better with lower temperatures (and lower top_k).')
     with open(args.out_file, 'w') as outfile:
         for gen_id in range(args.num_gen):
+
             xlm_lang = None
             # XLM Language usage detailed in the issues #1414
             if args.model_type in ["xlm"] and hasattr(tokenizer, 'lang2id') and hasattr(model.config, 'use_lang_emb') \
