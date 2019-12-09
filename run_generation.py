@@ -354,7 +354,7 @@ def main():
     args = parser.parse_args()
 
     if not args.out_file:
-        args.out_file = "generation_{}_{}.txt".format(args.mode, args.length)
+        args.out_file = "generation_mode_{}_refine_{}_len_{}_k_{}_p_{}.txt".format(args.mode, args.refine, args.length, args.top_k, args.top_p)
 
     args.device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
     args.n_gpu = torch.cuda.device_count()
