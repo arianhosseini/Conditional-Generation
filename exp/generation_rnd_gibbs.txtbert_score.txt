@@ -1,0 +1,6 @@
+>>> Read generated samples from exp/generation_rnd_gibbs.txt
+calculating scores...
+computing bert embedding.
+computing greedy matching.
+done in 49.51 seconds, 20.14 sentences/sec
+System level F1 score: 0.770

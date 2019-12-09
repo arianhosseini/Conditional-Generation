@@ -7,6 +7,6 @@ do
             --model_name_or_path xlnet-base-cased \
             --refine $REF \
             --mode $MODE \
-            --num_gen 5000
+            --num_gen 1000
     done
 done

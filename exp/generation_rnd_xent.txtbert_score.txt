@@ -1,0 +1,3 @@
+>>> Read generated samples from exp/generation_rnd_xent.txt
+calculating scores...
+computing bert embedding.
