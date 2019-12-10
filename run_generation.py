@@ -397,7 +397,7 @@ def main():
             logger.info('CTRL typically works better with lower temperatures (and lower top_k).')
     with open(args.out_file, 'w') as outfile:
         for gen_id in range(args.num_gen):
-
+            # print(gen_id)
             xlm_lang = None
             # XLM Language usage detailed in the issues #1414
             if args.model_type in ["xlm"] and hasattr(tokenizer, 'lang2id') and hasattr(model.config, 'use_lang_emb') \
