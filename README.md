@@ -55,3 +55,11 @@ python run_evaluation.py  --input-file my_input_file.txt --verbose
 ```
 
 
+## Batch processing 
+
+If you want to run the generation and evalutation in batch, you can use the 
+bash scripts provided.
+```
+bash run_generation.sh
+bash run_evaluation.sh
+```
