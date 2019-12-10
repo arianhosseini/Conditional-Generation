@@ -1,0 +1,1 @@
+>>> Read generated samples from exp_shawn/generation_mode_rnd_refine_gibbs_len_60_k_8_p_0.9.txt

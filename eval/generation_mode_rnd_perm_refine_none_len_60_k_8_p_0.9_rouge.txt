@@ -1,0 +1,7 @@
+>>> Read generated samples from exp_shawn/generation_mode_rnd_perm_refine_none_len_60_k_8_p_0.9.txt
+	rouge-1:	P: 44.64	R: 16.61	F1: 23.29
+	rouge-2:	P:  9.74	R:  3.52	F1:  4.96
+	rouge-3:	P:  2.90	R:  1.03	F1:  1.46
+	rouge-4:	P:  1.09	R:  0.38	F1:  0.55
+	rouge-l:	P: 45.27	R: 19.50	F1: 26.36
+	rouge-w:	P: 26.98	R:  5.62	F1:  9.00
