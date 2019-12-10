@@ -1,6 +1,0 @@
->>> Read generated samples from exp/generation_mode_ltr_refine_gibbs_len_100_k_0_p_1.0.txt
-calculating scores...
-computing bert embedding.
-computing greedy matching.
-done in 34.66 seconds, 28.85 sentences/sec
-System level F1 score: 0.804
