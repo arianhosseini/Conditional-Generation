@@ -1,7 +1,0 @@
->>> Read generated samples from exp/generation_ltr_xent.txt
-	rouge-1:	P: 33.84	R:  6.51	F1: 10.85
-	rouge-2:	P:  4.52	R:  0.85	F1:  1.41
-	rouge-3:	P:  1.20	R:  0.21	F1:  0.36
-	rouge-4:	P:  0.51	R:  0.08	F1:  0.14
-	rouge-l:	P: 36.44	R:  9.19	F1: 14.60
-	rouge-w:	P: 22.86	R:  2.59	F1:  4.62

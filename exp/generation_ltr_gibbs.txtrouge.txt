@@ -1,7 +1,0 @@
->>> Read generated samples from exp/generation_ltr_gibbs.txt
-	rouge-1:	P: 23.55	R:  6.42	F1: 10.03
-	rouge-2:	P:  1.70	R:  0.47	F1:  0.73
-	rouge-3:	P:  0.33	R:  0.10	F1:  0.15
-	rouge-4:	P:  0.09	R:  0.03	F1:  0.04
-	rouge-l:	P: 26.84	R:  9.08	F1: 13.50
-	rouge-w:	P: 15.70	R:  2.52	F1:  4.30

@@ -1,7 +1,0 @@
->>> Read generated samples from exp/generation_rnd_none.txt
-	rouge-1:	P:  0.74	R:  0.12	F1:  0.21
-	rouge-2:	P:  0.00	R:  0.00	F1:  0.00
-	rouge-3:	P:  0.00	R:  0.00	F1:  0.00
-	rouge-4:	P:  0.00	R:  0.00	F1:  0.00
-	rouge-l:	P:  1.18	R:  0.26	F1:  0.43
-	rouge-w:	P:  0.74	R:  0.07	F1:  0.13
