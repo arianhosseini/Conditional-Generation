@@ -4,8 +4,8 @@ for FILE in $FILES
 do
     for METRIC in FID bert_score rouge
     do
-        echo $FILE
-        echo $METRIC
+        FILENAME=$(echo $FILE | rev | cut -c5- | rev)_$METRIC.txt
+        echo $FILENAME
         python run_evaluation.py \
             --evaluation $METRIC \
             --input-file $FILE \

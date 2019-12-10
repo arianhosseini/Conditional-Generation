@@ -2,7 +2,7 @@ for top_args in "--top_k 0 --top_p 1." # "--top_k 8 --top_p 0.9"
 do
     for LENGTH in 60 # 100
     do
-        for MODE in rnd #ltr rnd_perm 
+        for MODE in rnd #ltr rnd_perm
         do
             for REF in gibbs xent none
             do
@@ -13,7 +13,7 @@ do
                     --mode $MODE \
                     --length $LENGTH \
                     --num_gen 1000 \
-                    $top_args
+                    $top_args &
             done
         done
     done
