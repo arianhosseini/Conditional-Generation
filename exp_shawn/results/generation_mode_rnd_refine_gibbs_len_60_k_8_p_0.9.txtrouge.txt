@@ -1,0 +1,7 @@
+>>> Read generated samples from exp_shawn/generation_mode_rnd_refine_gibbs_len_60_k_8_p_0.9.txt
+	rouge-1:	P: 17.05	R:  8.70	F1: 11.38
+	rouge-2:	P:  0.73	R:  0.37	F1:  0.48
+	rouge-3:	P:  0.04	R:  0.02	F1:  0.03
+	rouge-4:	P:  0.01	R:  0.01	F1:  0.01
+	rouge-l:	P: 20.39	R: 11.65	F1: 14.68
+	rouge-w:	P: 10.76	R:  3.24	F1:  4.89

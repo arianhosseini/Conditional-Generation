@@ -1,0 +1,6 @@
+>>> Read generated samples from exp_shawn/generation_mode_ltr_refine_none_len_100_k_8_p_0.9.txt
+calculating scores...
+computing bert embedding.
+computing greedy matching.
+done in 33.57 seconds, 29.79 sentences/sec
+System level F1 score: 0.824
