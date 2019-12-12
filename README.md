@@ -30,6 +30,7 @@ and the generated text.
 python run_generation.py \ 
     --model_type xlnet 
     --model_name_or_path xlnet-base-cased
+    --mode ltr
     --refine gibbs
 ```
 
